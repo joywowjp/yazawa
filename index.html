@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>矢沢語録</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#000000">
+<style>
+  :root{--bg:#0b0b0b;--fg:#fff;--accent:#e11d48;--muted:#aaa;}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,'Hiragino Kaku Gothic ProN',Meiryo,Roboto,'Noto Sans JP',sans-serif;}
+  header{max-width:880px;margin:0 auto;padding:20px 18px 8px}
+  h1{margin:0;font-size:1.6rem;display:flex;align-items:center;gap:.6rem}
+  .pill{background:#111;border:1px solid #222;border-radius:999px;padding:2px 10px;color:#f1f5f9;font-size:.8rem}
+  main{max-width:880px;margin:0 auto;padding:8px 18px 40px}
+  .card{background:#0f0f0f;border:1px solid #222;border-radius:14px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .quote{font-size:1.9rem;line-height:1.6}
+  .meta{color:var(--muted);margin-top:10px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  button{cursor:pointer;border:1px solid #333;background:#151515;color:#eee;border-radius:10px;padding:10px 14px}
+  button.primary{background:var(--accent);border-color:#be123c}
+  footer{color:#888;text-align:center;font-size:.85rem;margin:20px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>矢沢語録 <span class="pill">PWA / オフライン対応</span></h1>
+</header>
+
+<main>
+  <section class="card">
+    <div id="quote" class="quote">…</div>
+    <div id="date" class="meta"></div>
+    <div class="toolbar">
+      <button id="share">共有</button>
+      <button id="install" class="primary" style="display:none">ホーム画面に追加</button>
+      <button id="refresh">今日のひと言を更新</button>
+    </div>
+  </section>
+</main>
+
+<footer>© JOYWOW — ことだまプログラミング</footer>
+
+<script>
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js'); }
+let deferredPrompt=null;
+const installBtn=document.getElementById('install');
+window.addEventListener('beforeinstallprompt',(e)=>{e.preventDefault();deferredPrompt=e;installBtn.style.display='inline-block';});
+installBtn.addEventListener('click',async()=>{ if(!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice; installBtn.style.display='none'; deferredPrompt=null; });
+
+const quotes=[
+  "人生は失うものを増やしていくゲーム",
+  "欲がないと無理　夢だけじゃ無理",
+  "絶対上に行かなきゃいけない",
+  "帰りたくなったら、いつでも帰っておいで",
+  "ビートルズはいまとなっては同業。「おまえには負けないぞ」",
+  "オレはオレの世界を進む",
+  "もっといい曲をつくる",
+  "この時代がきてる勘",
+  "一千万の価値感を持ってるって言いたい。大事にしたいんだ",
+  "反撃しろ　攻撃しろ",
+  "自分の手でメシ食って　誇りを持つこと",
+  "ハートで汗かいているかどうか　そこが大事だ",
+  "自分のやり方でやる",
+  "おまえはほんとに何が歌いたいんだ　その問いにオレは答えてる　十万の目の前で汗をふりしぼって答える",
+  "解散しても変わらないなら　解散する必要はない　元キャロルで矢沢を売るな",
+  "費用は全部自分持ちだよ。通訳の人の分まで。一回、裸になった。あの時は。キャロルの印税、全部投げ出した",
+  "大勝負よ。一アーティストがン千万借金してやるんだから。",
+  "いざという時に必要だっていったろ、金が。",
+  "やる気で震えてたよ。",
+  "キツい旅だ　おまえにわかるかい",
+  "ロックで超満員にしてやる",
+  "もっと！　もっと！　もっと！",
+  "一千万円？　ノー。一千五百万欲しい。一千五百万、ふざけるな、五千万だ。",
+  "もっと当たるものを作れ。",
+  "いつだって、オレには、やることがある。",
+  "風呂がなくてね。銭湯に通うの。子供を、オレがおぶってさ、女房とサ。",
+  "ゼロから出発するべきだ。心から感じてた。",
+  "そこまで認めさせるには、てめえが、自分の道のほうでガンガンやらなきゃダメなんだ。",
+  "自分でメシ食ってる領域ってのは、生活でなきゃいけないんだ。",
+  "メロディ出てくる　欲出てくる",
+  "７０歳を超えてバラードが書けちゃう",
+  "ほんとに紙一重でがんばってきたからですよ"
+];
+
+function todayIndex(){
+  const base=new Date(2025,0,1);
+  const now=new Date();
+  const diff=Math.floor((now-base)/86400000);
+  return ((diff%quotes.length)+quotes.length)%quotes.length;
+}
+
+function loadOffset(){
+  const todayKey=new Date().toDateString();
+  const savedDay=localStorage.getItem('yazawa_day');
+  if(savedDay!==todayKey){
+    localStorage.setItem('yazawa_day', todayKey);
+    localStorage.setItem('yazawa_offset','0');
+  }
+  return parseInt(localStorage.getItem('yazawa_offset')||'0',10);
+}
+function saveOffset(v){ localStorage.setItem('yazawa_offset', String(v)); }
+
+let offset = loadOffset();
+
+function render(){
+  offset = loadOffset();
+  const idx=(todayIndex()+offset)%quotes.length;
+  document.getElementById('quote').textContent='「'+quotes[idx]+'」';
+  document.getElementById('date').textContent=new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'})+' のひと言';
+}
+
+document.getElementById('refresh').onclick=()=>{
+  offset=(offset+1)%quotes.length;
+  saveOffset(offset);
+  render();
+};
+
+document.getElementById('share').onclick=async()=>{
+  const text=document.getElementById('quote').textContent+' #矢沢語録';
+  if(navigator.share){ try{ await navigator.share({text}); }catch(e){} }
+  else{ await navigator.clipboard.writeText(text); alert('コピーしました'); }
+};
+
+render();
+</script>
+</body>
+</html>
